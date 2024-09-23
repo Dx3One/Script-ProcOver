@@ -1,6 +1,9 @@
 $Duration = 30 * 60 # 30 Minuten
 $Interval = 10
+$Hostname = $env:COMPUTERNAME
+$OutputFile = "pocmon-$Hostname.txt"
 $TempFile = [System.IO.Path]::GetTempFileName()
+
 function Monitor-Processes {
     while ($true) {
         Get-Process | Sort-Object CPU -Descending | Select-Object -First 20 | ForEach-Object {
@@ -10,10 +13,17 @@ function Monitor-Processes {
         Start-Sleep -Seconds $Interval
     }
 }
+
 $MonitorJob = Start-Job -ScriptBlock { Monitor-Processes }
 Start-Sleep -Seconds $Duration
 Stop-Job $MonitorJob
 Remove-Job $MonitorJob
-Write-Host "Prozesse mit der höchsten Last:"
-Get-Content $TempFile | Select-String -Pattern "^\d+" | Sort-Object | Group-Object | Sort-Object Count -Descending | Select-Object -First 10
+
+Write-Host "Prozesse mit der höchsten Last:" | Out-File -FilePath $OutputFile -Append
+Get-Content $TempFile | Select-String -Pattern "^\d+" | Sort-Object | Group-Object | Sort-Object Count -Descending | Select-Object -First 10 | ForEach-Object {
+    $_.Group | Out-File -Append -FilePath $OutputFile
+}
+
 Remove-Item $TempFile
+
+Write-Host "Output wurde in der Datei $OutputFile gespeichert."
